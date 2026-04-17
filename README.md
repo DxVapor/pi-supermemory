@@ -1,5 +1,16 @@
 # 🧠 Pi SuperMemory Extension
 
+[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=DxVapor_pi-supermemory&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=DxVapor_pi-supermemory)
+[![Bugs](https://sonarcloud.io/api/project_badges/measure?project=DxVapor_pi-supermemory&metric=bugs)](https://sonarcloud.io/summary/new_code?id=DxVapor_pi-supermemory)
+[![Vulnerabilities](https://sonarcloud.io/api/project_badges/measure?project=DxVapor_pi-supermemory&metric=vulnerabilities)](https://sonarcloud.io/summary/new_code?id=DxVapor_pi-supermemory)
+[![Security Rating](https://sonarcloud.io/api/project_badges/measure?project=DxVapor_pi-supermemory&metric=security_rating)](https://sonarcloud.io/summary/new_code?id=DxVapor_pi-supermemory)
+[![Maintainability Rating](https://sonarcloud.io/api/project_badges/measure?project=DxVapor_pi-supermemory&metric=sqale_rating)](https://sonarcloud.io/summary/new_code?id=DxVapor_pi-supermemory)
+[![Reliability Rating](https://sonarcloud.io/api/project_badges/measure?project=DxVapor_pi-supermemory&metric=reliability_rating)](https://sonarcloud.io/summary/new_code?id=DxVapor_pi-supermemory)
+[![Code Smells](https://sonarcloud.io/api/project_badges/measure?project=DxVapor_pi-supermemory&metric=code_smells)](https://sonarcloud.io/summary/new_code?id=DxVapor_pi-supermemory)
+[![Coverage](https://sonarcloud.io/api/project_badges/measure?project=DxVapor_pi-supermemory&metric=coverage)](https://sonarcloud.io/summary/new_code?id=DxVapor_pi-supermemory)
+[![npm version](https://img.shields.io/npm/v/pi-supermemory)](https://www.npmjs.com/package/pi-supermemory)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 Persistent memory for [Pi](https://github.com/mariozechner/pi) - the AI coding agent that remembers context across sessions using [SuperMemory](https://supermemory.ai).
 
 **Note:** This extension is compatible with SuperMemory SDK v2. API parameters have changed from earlier versions (`containerTag` instead of `containerTags`, `limit` instead of `topK`, `q` instead of `context`, `forget` instead of `delete`).
@@ -41,36 +52,49 @@ Conversations are automatically stored (when substantial) for future reference.
 
 ## Installation
 
-### Prerequisites
+### 1. Get a SuperMemory API key
 
-1. **Get a SuperMemory API key**:
-   - Sign up at [supermemory.ai](https://supermemory.ai)
-   - Generate an API key from your dashboard
+Sign up at [supermemory.ai](https://supermemory.ai) and generate an API key from your dashboard.
 
-2. **Set environment variables**:
-   ```bash
-   export SUPERMEMORY_API_KEY="your-api-key-here"
-   # Optional: customize container prefix (default: "pi")
-   export SUPERMEMORY_CONTAINER="myorg"
-   ```
-
-### Install the Extension
+### 2. Set your API key
 
 ```bash
-# In your Pi extensions directory (usually ~/.pi/agent/extensions/)
-cd ~/.pi/agent/extensions/
-
-# Clone or copy this extension
-git clone https://github.com/dan/pi-supermemory.git supermemory
-
-# Install dependencies
-cd supermemory
-npm install
+export SUPERMEMORY_API_KEY="your-api-key-here"
 ```
+
+Add this to your shell profile (`~/.zshrc`, `~/.bashrc`, etc.) so it persists across sessions.
+
+### 3. Install the extension
+
+Install globally (available in all projects):
+
+```bash
+pi install npm:pi-supermemory
+```
+
+Or install for a specific project only:
+
+```bash
+pi install -l npm:pi-supermemory
+```
+
+That's it — Pi will load the extension automatically on next start.
+
+> **Try before you install:** Run for a single session without saving:
+> ```bash
+> pi -e npm:pi-supermemory
+> ```
 
 ### Verify Installation
 
-Start Pi and look for the 🧠 indicator in the status bar, or check that no "SUPERMEMORY_API_KEY not set" warning appears.
+Start Pi and look for the 🧠 indicator in the status bar, or check that no `SUPERMEMORY_API_KEY not set` warning appears.
+
+### Optional: Customize container prefix
+
+```bash
+# Default prefix is "pi" — change if you want org-scoped tags
+export SUPERMEMORY_CONTAINER="myorg"
+```
 
 ## Usage
 
@@ -132,6 +156,20 @@ The extension uses container tags to organize memories:
 
 This keeps different users' and projects' memories separate.
 
+### Per-Project Container Tag
+
+Override the project container tag via `.pi/settings.json` in your repository:
+
+```json
+{
+  "supermemory": {
+    "containerTag": "my-custom-project-tag"
+  }
+}
+```
+
+This is useful when you want multiple directories to share the same memory space, or when you want a stable tag regardless of the folder name.
+
 ## API Reference
 
 ### Tool: `supermemory`
@@ -187,17 +225,19 @@ The extension works by:
 
 ```bash
 # Clone the repo
-git clone https://github.com/dan/pi-supermemory.git
+git clone git@github.com:DxVapor/pi-supermemory.git
 cd pi-supermemory
 
 # Install dependencies
 npm install
 
-# Link for local development
-npm link
+# Type check
+npx tsc --noEmit --strict --target ES2022 --moduleResolution bundler --module ES2022 index.ts
 
-# In Pi extensions directory
-npm link pi-supermemory
+# Load locally in Pi for testing
+pi install ./path/to/pi-supermemory
+# or for a single session:
+pi -e ./index.ts
 ```
 
 ## Troubleshooting
@@ -226,4 +266,4 @@ MIT
 
 ## Contributing
 
-Contributions welcome! Please open an issue or PR on GitHub.
+Contributions welcome! Please open an issue or PR on [GitHub](https://github.com/DxVapor/pi-supermemory).

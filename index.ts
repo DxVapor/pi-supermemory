@@ -2,6 +2,8 @@ import type { ExtensionAPI, ExtensionContext } from "@mariozechner/pi-coding-age
 import { Type } from "@sinclair/typebox";
 import { StringEnum } from "@mariozechner/pi-ai";
 import Supermemory from "supermemory";
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
 
 // Config from environment
 const API_KEY = process.env.SUPERMEMORY_API_KEY;
@@ -11,9 +13,23 @@ const CONTAINER_PREFIX = process.env.SUPERMEMORY_CONTAINER || "pi";
 type MemoryType = "preference" | "project-config" | "architecture" | "error-solution" | "learned-pattern" | "conversation";
 type MemoryScope = "user" | "project";
 
-function getProjectTag(cwd: string): string {
-	// Create a tag from the project directory
+/** Read optional supermemory config from .pi/settings.json in the project dir */
+async function readPiConfig(cwd: string): Promise<{ containerTag?: string } | null> {
+	try {
+		const settingsPath = join(cwd, ".pi", "settings.json");
+		const raw = await readFile(settingsPath, "utf8");
+		const parsed = JSON.parse(raw);
+		return parsed?.supermemory ?? null;
+	} catch {
+		return null;
+	}
+}
+
+async function getProjectTag(cwd: string): Promise<string> {
 	const safeCwd = cwd || process.cwd();
+	const config = await readPiConfig(safeCwd);
+	if (config?.containerTag) return config.containerTag;
+	// Fallback: auto-derive from folder name
 	const projectName = safeCwd.split("/").filter(Boolean).pop() || "default";
 	return `${CONTAINER_PREFIX}_project_${projectName}`;
 }
@@ -103,7 +119,7 @@ export default function (pi: ExtensionAPI) {
 
 		try {
 			const userTag = getUserTag();
-			const projectTag = getProjectTag(ctx.cwd);
+			const projectTag = await getProjectTag(ctx.cwd);
 			lastCwd = ctx.cwd;
 
 			// Search for relevant memories based on the user's prompt
@@ -166,7 +182,7 @@ export default function (pi: ExtensionAPI) {
 			if (!conversationText.trim() || conversationText.length < 50) return;
 
 			// Store conversation in project scope
-			const projectTag = getProjectTag(ctx.cwd);
+			const projectTag = await getProjectTag(ctx.cwd);
 			await client.add({
 				content: conversationText.slice(0, 10000), // Limit content size
 				containerTag: projectTag,
@@ -227,7 +243,7 @@ Scopes:
 			const userTag = getUserTag();
 			// Use safeCwd to handle cases where ctx.cwd might be undefined
 			const safeCwd = ctx?.cwd || process.cwd();
-			const projectTag = getProjectTag(safeCwd);
+			const projectTag = await getProjectTag(safeCwd);
 
 			try {
 				switch (mode) {
@@ -454,8 +470,8 @@ Scopes:
 				return;
 			}
 
-			try {
-				const projectTag = getProjectTag(ctx.cwd);
+				try {
+				const projectTag = await getProjectTag(ctx.cwd);
 				await client.add({
 					content: args,
 					containerTag: projectTag,
@@ -488,7 +504,7 @@ Scopes:
 
 			try {
 				const userTag = getUserTag();
-				const projectTag = getProjectTag(ctx.cwd);
+				const projectTag = await getProjectTag(ctx.cwd);
 
 				const [userResults, projectResults] = await Promise.all([
 					client.search.memories({ q: args, containerTag: userTag, limit: 5 }),
