@@ -3,7 +3,7 @@ import { Type } from "@sinclair/typebox";
 import { StringEnum } from "@mariozechner/pi-ai";
 import Supermemory from "supermemory";
 import { readFile } from "node:fs/promises";
-import { join } from "node:path";
+import { basename, join, resolve } from "node:path";
 
 // Config from environment
 const API_KEY = process.env.SUPERMEMORY_API_KEY;
@@ -13,14 +13,42 @@ const CONTAINER_PREFIX = process.env.SUPERMEMORY_CONTAINER || "pi";
 type MemoryType = "preference" | "project-config" | "architecture" | "error-solution" | "learned-pattern" | "conversation";
 type MemoryScope = "user" | "project";
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return typeof value === "object" && value !== null;
+}
+
 /** Read optional supermemory config from .pi/settings.json in the project dir */
 async function readPiConfig(cwd: string): Promise<{ containerTag?: string } | null> {
+	const settingsPath = join(cwd, ".pi", "settings.json");
 	try {
-		const settingsPath = join(cwd, ".pi", "settings.json");
 		const raw = await readFile(settingsPath, "utf8");
-		const parsed = JSON.parse(raw);
-		return parsed?.supermemory ?? null;
-	} catch {
+		const parsed: unknown = JSON.parse(raw);
+
+		if (!isRecord(parsed)) {
+			console.warn(`[supermemory] Invalid config in ${settingsPath}: expected a JSON object`);
+			return null;
+		}
+
+		const supermemoryConfig = parsed.supermemory;
+		if (supermemoryConfig == null) return null;
+
+		if (!isRecord(supermemoryConfig)) {
+			console.warn(`[supermemory] Invalid config in ${settingsPath}: "supermemory" must be an object`);
+			return null;
+		}
+
+		const { containerTag } = supermemoryConfig;
+		if (containerTag == null) return {};
+
+		if (typeof containerTag === "string" && containerTag.trim().length > 0) {
+			return { containerTag: containerTag.trim() };
+		}
+
+		console.warn(`[supermemory] Invalid config in ${settingsPath}: "supermemory.containerTag" must be a non-empty string`);
+		return null;
+	} catch (error: unknown) {
+		if (isRecord(error) && error.code === "ENOENT") return null;
+		console.warn(`[supermemory] Failed to read config from ${settingsPath}:`, error);
 		return null;
 	}
 }
@@ -28,9 +56,11 @@ async function readPiConfig(cwd: string): Promise<{ containerTag?: string } | nu
 async function getProjectTag(cwd: string): Promise<string> {
 	const safeCwd = cwd || process.cwd();
 	const config = await readPiConfig(safeCwd);
-	if (config?.containerTag) return config.containerTag;
-	// Fallback: auto-derive from folder name
-	const projectName = safeCwd.split("/").filter(Boolean).pop() || "default";
+	if (typeof config?.containerTag === "string" && config.containerTag.trim().length > 0) {
+		return config.containerTag;
+	}
+	// Fallback: cross-platform basename via path.resolve
+	const projectName = basename(resolve(safeCwd)) || "default";
 	return `${CONTAINER_PREFIX}_project_${projectName}`;
 }
 
@@ -231,11 +261,11 @@ Scopes:
 			memoryId: Type.Optional(Type.String({ description: "Memory ID (for 'forget' mode)" })),
 			limit: Type.Optional(Type.Number({ description: "Max results (for 'search' and 'list' modes)" })),
 		}),
-		async execute(toolCallId, params, onUpdate, ctx, signal) {
+		async execute(toolCallId, params, signal, onUpdate, ctx) {
 			if (!client) {
 				return {
-					content: [{ type: "text", text: "SuperMemory is not configured. Set SUPERMEMORY_API_KEY environment variable." }],
-					isError: true,
+					content: [{ type: "text" as const, text: "SuperMemory is not configured. Set SUPERMEMORY_API_KEY environment variable." }],
+					details: null,
 				};
 			}
 
@@ -250,7 +280,7 @@ Scopes:
 					case "help": {
 						return {
 							content: [{
-								type: "text",
+								type: "text" as const,
 								text: JSON.stringify({
 									commands: [
 										{ command: "add", description: "Store a new memory", args: ["content", "type?", "scope?"] },
@@ -266,14 +296,15 @@ Scopes:
 									types: ["preference", "project-config", "architecture", "error-solution", "learned-pattern", "conversation"],
 								}, null, 2),
 							}],
+							details: null,
 						};
 					}
 
 					case "add": {
 						if (!params.content) {
 							return {
-								content: [{ type: "text", text: "Error: 'content' parameter is required for add mode" }],
-								isError: true,
+								content: [{ type: "text" as const, text: "Error: 'content' parameter is required for add mode" }],
+								details: null,
 							};
 						}
 
@@ -293,7 +324,7 @@ Scopes:
 
 						return {
 							content: [{
-								type: "text",
+								type: "text" as const,
 								text: JSON.stringify({
 									success: true,
 									message: `Memory added to ${scope} scope`,
@@ -302,14 +333,15 @@ Scopes:
 									type: params.type,
 								}, null, 2),
 							}],
+							details: null,
 						};
 					}
 
 					case "search": {
 						if (!params.query) {
 							return {
-								content: [{ type: "text", text: "Error: 'query' parameter is required for search mode" }],
-								isError: true,
+								content: [{ type: "text" as const, text: "Error: 'query' parameter is required for search mode" }],
+								details: null,
 							};
 						}
 
@@ -342,7 +374,7 @@ Scopes:
 
 						return {
 							content: [{
-								type: "text",
+								type: "text" as const,
 								text: JSON.stringify({
 									success: true,
 									query: params.query,
@@ -355,6 +387,7 @@ Scopes:
 									})),
 								}, null, 2),
 							}],
+							details: null,
 						};
 					}
 
@@ -366,7 +399,7 @@ Scopes:
 
 						return {
 							content: [{
-								type: "text",
+								type: "text" as const,
 								text: JSON.stringify({
 									success: true,
 									profile: {
@@ -375,6 +408,7 @@ Scopes:
 									},
 								}, null, 2),
 							}],
+							details: null,
 						};
 					}
 
@@ -394,7 +428,7 @@ Scopes:
 
 						return {
 							content: [{
-								type: "text",
+								type: "text" as const,
 								text: JSON.stringify({
 									success: true,
 									scope,
@@ -407,50 +441,51 @@ Scopes:
 									})),
 								}, null, 2),
 							}],
+							details: null,
 						};
 					}
 
 					case "forget": {
 						if (!params.memoryId) {
 							return {
-								content: [{ type: "text", text: "Error: 'memoryId' parameter is required for forget mode" }],
-								isError: true,
+								content: [{ type: "text" as const, text: "Error: 'memoryId' parameter is required for forget mode" }],
+								details: null,
 							};
 						}
 
-						// Use forget (soft delete) with containerTag and memory id
 						const scope = params.scope || "project";
 						const containerTag = scope === "user" ? userTag : projectTag;
 						await client.memories.forget({
-							containerTag: containerTag,
+							containerTag,
 							id: params.memoryId,
 						});
 
 						return {
 							content: [{
-								type: "text",
+								type: "text" as const,
 								text: JSON.stringify({
 									success: true,
 									message: `Memory ${params.memoryId} forgotten from ${scope} scope`,
-									scope: scope,
+									scope,
 								}, null, 2),
 							}],
+							details: null,
 						};
 					}
 
 					default:
 						return {
-							content: [{ type: "text", text: `Unknown mode: ${mode}` }],
-							isError: true,
+							content: [{ type: "text" as const, text: `Unknown mode: ${mode}` }],
+							details: null,
 						};
 				}
 			} catch (error) {
 				return {
 					content: [{
-						type: "text",
+						type: "text" as const,
 						text: `SuperMemory error: ${error instanceof Error ? error.message : String(error)}`,
 					}],
-					isError: true,
+					details: null,
 				};
 			}
 		},
@@ -471,7 +506,7 @@ Scopes:
 			}
 
 				try {
-				const projectTag = await getProjectTag(ctx.cwd);
+					const projectTag = await getProjectTag(ctx.cwd);
 				await client.add({
 					content: args,
 					containerTag: projectTag,
@@ -482,7 +517,7 @@ Scopes:
 						timestamp: Date.now(),
 					},
 				});
-				ctx.ui.notify("Memory saved!", "success");
+				ctx.ui.notify("Memory saved!", "info");
 			} catch (error) {
 				ctx.ui.notify(`Failed to save memory: ${error}`, "error");
 			}

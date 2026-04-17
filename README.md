@@ -13,7 +13,7 @@
 
 Persistent memory for [Pi](https://github.com/mariozechner/pi) - the AI coding agent that remembers context across sessions using [SuperMemory](https://supermemory.ai).
 
-**Note:** This extension is compatible with SuperMemory SDK v2. API parameters have changed from earlier versions (`containerTag` instead of `containerTags`, `limit` instead of `topK`, `q` instead of `context`, `forget` instead of `delete`).
+**Note:** This extension supports the `supermemory` npm package 4.x and uses the current API parameter names (`containerTag` instead of `containerTags`, `limit` instead of `topK`, `q` instead of `context`, `forget` instead of `delete`).
 
 ## Overview
 
@@ -225,7 +225,7 @@ The extension works by:
 
 ```bash
 # Clone the repo
-git clone git@github.com:DxVapor/pi-supermemory.git
+git clone https://github.com/DxVapor/pi-supermemory.git
 cd pi-supermemory
 
 # Install dependencies

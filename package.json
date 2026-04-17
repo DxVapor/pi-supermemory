@@ -17,6 +17,9 @@
   "dependencies": {
     "supermemory": "^4.0.0"
   },
+  "devDependencies": {
+    "typescript": "5.6.3"
+  },
   "peerDependencies": {
     "@mariozechner/pi-coding-agent": ">=0.1.0",
     "@sinclair/typebox": ">=0.32.0",
@@ -37,12 +40,12 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/dan/pi-supermemory.git"
+    "url": "git+https://github.com/DxVapor/pi-supermemory.git"
   },
   "bugs": {
-    "url": "https://github.com/dan/pi-supermemory/issues"
+    "url": "https://github.com/DxVapor/pi-supermemory/issues"
   },
-  "homepage": "https://github.com/dan/pi-supermemory#readme",
+  "homepage": "https://github.com/DxVapor/pi-supermemory#readme",
   "engines": {
     "node": ">=18.0.0"
   }
