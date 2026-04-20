@@ -1,28 +1,24 @@
-name: Publish to npm
+name: Publish
 
 on:
-  release:
-    types: [published]
+  push:
+    tags:
+      - "v*"
 
 permissions:
   contents: read
-  id-token: write  # Required for npm provenance (OIDC trusted publishing)
+  id-token: write
 
 jobs:
   publish:
-    name: Publish
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          registry-url: 'https://registry.npmjs.org'
-          cache: 'npm'
+          node-version: 22
+          registry-url: https://registry.npmjs.org
 
       - name: Install dependencies
         run: npm install
@@ -30,7 +26,18 @@ jobs:
       - name: TypeScript type check
         run: ./node_modules/.bin/tsc --noEmit --skipLibCheck --target ES2022 --moduleResolution bundler --module ES2022 index.ts
 
-      - name: Publish with provenance
-        run: npm publish --provenance --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      - name: Check if publish needed
+        id: check
+        run: |
+          LOCAL=$(node -p "require('./package.json').version")
+          REMOTE=$(npx npm@latest view pi-supermemory version 2>/dev/null || echo "NOT_FOUND")
+          echo "local=$LOCAL remote=$REMOTE"
+          if [ "$LOCAL" != "$REMOTE" ]; then echo "needs_publish=true" >> $GITHUB_OUTPUT; fi
+
+      - name: Publish
+        if: steps.check.outputs.needs_publish == 'true'
+        run: npx npm@latest publish --access public --provenance --registry https://registry.npmjs.org
+
+      - name: Summary
+        run: |
+          echo "pi-supermemory: ${{ steps.check.outputs.needs_publish == 'true' && 'published' || 'skipped (up to date)' }}"
